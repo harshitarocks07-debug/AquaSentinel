@@ -1,0 +1,25 @@
+
+# Python
+__pycache__/
+*.py[cod]
+*.pkl
+*.joblib
+
+# Virtual environment
+venv/
+.venv/
+
+# Environment variables
+.env
+
+# Large raw datasets
+data/raw/villages_extracted/
+data/raw/*.zip
+
+# Processed datasets
+data/processed/gujarat_district_monthly_rainfall.csv
+data/processed/gujarat_district_spi.csv
+data/processed/daily_rainfall/
+
+# IDE
+.vscode/
