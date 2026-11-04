@@ -1,178 +1,68 @@
 
 import { useEffect, useMemo, useState } from "react";
-
+import axios from "axios";
 import {
+  Activity,
+  AlertTriangle,
+  Bell,
+  CloudRain,
+  Droplets,
+  Gauge,
   LayoutDashboard,
   Map,
+  RefreshCw,
+  Search,
+  ShieldCheck,
   Waves,
   Wind,
-  Bell,
-  Droplets,
-  RefreshCw,
-  AlertTriangle,
-  Activity,
-  ShieldCheck,
-  Gauge,
-  Search,
-  Menu,
-  X,
-  BrainCircuit,
-  CloudRain,
 } from "lucide-react";
-
 import {
-  ResponsiveContainer,
-  BarChart,
   Bar,
-  XAxis,
-  YAxis,
+  BarChart,
   CartesianGrid,
-  Tooltip,
-  PieChart,
-  Pie,
   Cell,
   Legend,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
 } from "recharts";
-
+import "leaflet/dist/leaflet.css";
+import { GeoJSON, MapContainer, TileLayer, useMap } from "react-leaflet";
 import "./App.css";
 
 const API_URL = "http://127.0.0.1:8000/api/risk/latest";
-
-// --------------------------------------------------
-// NAVIGATION
-// --------------------------------------------------
-
-const NAV_ITEMS = [
-  { label: "Overview", icon: LayoutDashboard, id: "overview" },
-  { label: "District Monitoring", icon: Map, id: "districts" },
-  { label: "Flood Analysis", icon: Waves, id: "flood" },
-  { label: "AI Early Warnings", icon: BrainCircuit, id: "ml-warning" },
-  { label: "Drought Analysis", icon: Wind, id: "drought" },
-  { label: "Risk Alerts", icon: Bell, id: "alerts" },
-];
-
-// --------------------------------------------------
-// ALERT COLORS
-// --------------------------------------------------
-
-const ALERT_COLORS = {
-  Critical: "#ef4444",
-  High: "#f97316",
-  Moderate: "#eab308",
-  Low: "#3b82f6",
-  Normal: "#22c55e",
-  "Insufficient Data": "#64748b",
-};
-
-// --------------------------------------------------
-// STATUS COMPONENTS
-// --------------------------------------------------
-
-function getStatusClass(status) {
-  const value = (status || "Insufficient Data").toLowerCase();
-
-  const classes = {
-    "extreme drought": "extreme-drought",
-    "severe drought": "severe-drought",
-    "moderate drought": "moderate-drought",
-    "very high": "very-high",
-    high: "high",
-    moderate: "moderate",
-    low: "low",
-    normal: "normal",
-    critical: "critical",
-    "insufficient data": "insufficient-data",
-  };
-
-  return classes[value] || "insufficient-data";
-}
-
-function StatusPill({ status }) {
-  const value = status || "Insufficient Data";
-
-  return (
-    <span className={`status-pill ${getStatusClass(value)}`}>
-      {value}
-    </span>
-  );
-}
-
-// --------------------------------------------------
-// STAT CARD
-// --------------------------------------------------
-
-function StatCard({ icon: Icon, label, value, subtitle, color }) {
-  return (
-    <div className="stat-card">
-      <div className={`stat-icon ${color}`}>
-        <Icon size={21} />
-      </div>
-
-      <div className="stat-label">{label}</div>
-      <div className="stat-value">{value}</div>
-      <div className="stat-subtitle">{subtitle}</div>
-    </div>
-  );
-}
-
-// --------------------------------------------------
-// MAIN APP
-// --------------------------------------------------
+const FLOOD_API_URL = "http://127.0.0.1:8000/api/flood/latest";
+const GEOJSON_URL = "/data/gujarat_districts.geojson";
 
 function App() {
-  const [data, setData] = useState([]);
-
-  const [droughtDate, setDroughtDate] = useState("N/A");
-  const [floodDate, setFloodDate] = useState("N/A");
-
-  const [modelStatus, setModelStatus] = useState({
-    available: false,
-  });
-
+  const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("All");
-
-  const [activePage, setActivePage] = useState("overview");
-  const [mobileMenu, setMobileMenu] = useState(false);
-
-  // --------------------------------------------------
-  // FETCH UNIFIED BACKEND DATA
-  // --------------------------------------------------
+  const [floodData, setFloodData] = useState(null);
+  const [geoJson, setGeoJson] = useState(null);
+  const [geoError, setGeoError] = useState("");
+  const [mapMode, setMapMode] = useState("flood");
+  const [selectedMapDistrict, setSelectedMapDistrict] = useState(null);
 
   const fetchData = async () => {
-    setLoading(true);
-    setError("");
-
     try {
-      const response = await fetch(API_URL);
+      setLoading(true);
+      setError("");
 
-      if (!response.ok) {
-        throw new Error(`API returned HTTP ${response.status}`);
-      }
-
-      const result = await response.json();
-
-      if (!Array.isArray(result.districts)) {
-        throw new Error("Unexpected API response format");
-      }
-
-      setData(result.districts);
-
-      setDroughtDate(result.drought_data_date || "N/A");
-      setFloodDate(result.flood_data_date || "N/A");
-
-      setModelStatus(
-        result.flood_model_status || {
-          available: false,
-        }
-      );
+      const [riskResponse, floodResponse] = await Promise.all([
+        axios.get(API_URL),
+        axios.get(FLOOD_API_URL).catch(() => null),
+      ]);
+      setData(riskResponse.data);
+      setFloodData(floodResponse?.data || null);
     } catch (err) {
-      console.error("API error:", err);
-
       setError(
+        err.response?.data?.detail ||
         "Unable to connect to AquaSentinel API. Check whether the backend is running."
       );
     } finally {
@@ -182,824 +72,524 @@ function App() {
 
   useEffect(() => {
     fetchData();
+    axios.get(GEOJSON_URL)
+      .then((response) => setGeoJson(response.data))
+      .catch(() => setGeoError("District boundary file not found. Copy gujarat_districts.geojson into frontend/public/data/"));
   }, []);
 
-  // --------------------------------------------------
-  // DASHBOARD STATISTICS
-  // --------------------------------------------------
+  const districts = data?.districts || [];
+  const floodDistricts = Array.isArray(floodData?.districts)
+    ? floodData.districts
+    : Array.isArray(floodData) ? floodData : [];
 
-  const stats = useMemo(() => {
-    const critical = data.filter(
-      (item) => item.overall_alert === "Critical"
-    ).length;
+  const summary = useMemo(() => {
+    const alerts = districts.reduce((acc, item) => {
+      const level = item.overall_alert || "Insufficient Data";
+      acc[level] = (acc[level] || 0) + 1;
+      return acc;
+    }, {});
 
-    const highFlood = data.filter((item) =>
+    const floodHigh = districts.filter((item) =>
       ["High", "Very High"].includes(item.flood?.status)
     ).length;
 
-    const droughtAffected = data.filter((item) =>
-      [
-        "Moderate Drought",
-        "Severe Drought",
-        "Extreme Drought",
-      ].includes(item.drought?.status)
-    ).length;
-
-    const mlWarnings = data.filter(
-      (item) => item.flood?.extreme_rainfall_warning === true
+    const droughtAffected = districts.filter((item) =>
+      ["Moderate Drought", "Severe Drought", "Extreme Drought"].includes(
+        item.drought?.status
+      )
     ).length;
 
     return {
-      districts: data.length,
-      critical,
-      highFlood,
+      critical: alerts.Critical || 0,
+      high: alerts.High || 0,
+      floodHigh,
       droughtAffected,
-      mlWarnings,
     };
-  }, [data]);
-
-  // --------------------------------------------------
-  // ALERT DISTRIBUTION
-  // --------------------------------------------------
-
-  const alertDistribution = useMemo(() => {
-    const levels = [
-      "Critical",
-      "High",
-      "Moderate",
-      "Low",
-      "Normal",
-      "Insufficient Data",
-    ];
-
-    return levels
-      .map((level) => ({
-        name: level,
-        value: data.filter(
-          (item) => item.overall_alert === level
-        ).length,
-      }))
-      .filter((item) => item.value > 0);
-  }, [data]);
-
-  // --------------------------------------------------
-  // FLOOD CHART DATA
-  // --------------------------------------------------
-
-  const floodChartData = useMemo(() => {
-    return [...data]
-      .sort(
-        (a, b) =>
-          (b.flood?.risk_score ?? 0) -
-          (a.flood?.risk_score ?? 0)
-      )
-      .slice(0, 8)
-      .map((item) => ({
-        district: item.district,
-        score: item.flood?.risk_score ?? 0,
-      }));
-  }, [data]);
-
-  // --------------------------------------------------
-  // ACTIVE ML WARNINGS
-  // --------------------------------------------------
-
-  const mlWarningDistricts = useMemo(() => {
-    return data
-      .filter(
-        (item) =>
-          item.flood?.extreme_rainfall_warning === true
-      )
-      .sort(
-        (a, b) =>
-          (b.flood?.extreme_rainfall_model_score ?? 0) -
-          (a.flood?.extreme_rainfall_model_score ?? 0)
-      );
-  }, [data]);
-
-  // --------------------------------------------------
-  // DISTRICT SEARCH AND FILTER
-  // --------------------------------------------------
+  }, [districts]);
 
   const filteredDistricts = useMemo(() => {
-    return data.filter((item) => {
-      const matchesSearch = (item.district || "")
-        .toLowerCase()
+    return districts.filter((item) => {
+      const matchesSearch = item.district
+        ?.toLowerCase()
         .includes(search.toLowerCase());
 
       const matchesFilter =
-        filter === "All" ||
-        item.overall_alert === filter;
+        filter === "All" || item.overall_alert === filter;
 
       return matchesSearch && matchesFilter;
     });
-  }, [data, search, filter]);
+  }, [districts, search, filter]);
 
-  // --------------------------------------------------
-  // NAVIGATION
-  // --------------------------------------------------
+  const chartData = districts
+    .filter((item) => item.flood?.risk_score != null)
+    .sort((a, b) => b.flood.risk_score - a.flood.risk_score)
+    .slice(0, 8)
+    .map((item) => ({
+      district: item.district,
+      flood: item.flood.risk_score,
+    }));
 
-  const scrollToSection = (id) => {
-    setActivePage(id);
-    setMobileMenu(false);
+  const alertData = [
+    { name: "Critical", value: summary.critical, color: "#ef4444" },
+    { name: "High", value: summary.high, color: "#f97316" },
+    {
+      name: "Moderate",
+      value: districts.filter((d) => d.overall_alert === "Moderate").length,
+      color: "#eab308",
+    },
+    {
+      name: "Low",
+      value: districts.filter((d) => d.overall_alert === "Low").length,
+      color: "#3b82f6",
+    },
+    {
+      name: "Normal",
+      value: districts.filter((d) => d.overall_alert === "Normal").length,
+      color: "#22c55e",
+    },
+  ].filter((item) => item.value > 0);
 
-    document.getElementById(id)?.scrollIntoView({
-      behavior: "smooth",
-      block: "start",
-    });
+  // Drought analytics are derived from the latest district-level SPI/status
+  // values returned by the unified risk API. This is not a historical trend.
+  const droughtChartData = districts
+    .filter((item) => item.drought?.spi_3 != null && Number.isFinite(Number(item.drought.spi_3)))
+    .map((item) => {
+      const spi = Number(item.drought.spi_3);
+      return {
+        district: item.district,
+        spi,
+        severity: Math.abs(spi),
+        status: item.drought?.status || "Insufficient Data",
+      };
+    })
+    .sort((a, b) => b.severity - a.severity)
+    .slice(0, 10);
+
+  const droughtSeverityData = [
+    { name: "Extreme Drought", value: districts.filter((d) => d.drought?.status === "Extreme Drought").length, color: "#991b1b" },
+    { name: "Severe Drought", value: districts.filter((d) => d.drought?.status === "Severe Drought").length, color: "#ef4444" },
+    { name: "Moderate Drought", value: districts.filter((d) => d.drought?.status === "Moderate Drought").length, color: "#f97316" },
+    { name: "Normal", value: districts.filter((d) => d.drought?.status === "Normal").length, color: "#22c55e" },
+    { name: "Insufficient Data", value: districts.filter((d) => !d.drought?.status || d.drought.status === "Insufficient Data").length, color: "#64748b" },
+  ].filter((item) => item.value > 0);
+
+  const droughtSeverityCount = districts.filter((item) =>
+    ["Moderate Drought", "Severe Drought", "Extreme Drought"].includes(item.drought?.status)
+  ).length;
+
+  const getAlertClass = (level) => {
+    const classes = {
+      Critical: "critical",
+      High: "high",
+      Moderate: "moderate",
+      Low: "low",
+      Normal: "normal",
+      "Insufficient Data": "unknown",
+      "Extreme Drought": "extreme-drought",
+      "Severe Drought": "severe-drought",
+      "Moderate Drought": "moderate-drought",
+    };
+    return classes[level] || "unknown";
   };
-
-  // --------------------------------------------------
-  // LOADING STATE
-  // --------------------------------------------------
-
-  if (loading && data.length === 0) {
-    return (
-      <div className="loading-state">
-        <RefreshCw className="spin" size={28} />
-        <p>Loading AquaSentinel environmental intelligence...</p>
-      </div>
-    );
-  }
-
-  // --------------------------------------------------
-  // MAIN DASHBOARD
-  // --------------------------------------------------
 
   return (
     <div className="app-shell">
-
-      {/* MOBILE OVERLAY */}
-
-      {mobileMenu && (
-        <button
-          className="mobile-overlay"
-          aria-label="Close navigation"
-          onClick={() => setMobileMenu(false)}
-        />
-      )}
-
-      {/* SIDEBAR */}
-
-      <aside
-        className={`sidebar ${mobileMenu ? "sidebar-open" : ""}`}
-      >
+      <aside className="sidebar">
         <div className="brand">
           <div className="brand-icon">
-            <Droplets size={25} />
+            <Droplets size={23} />
           </div>
-
-          <div className="brand-text">
+          <div>
             <h2>AquaSentinel</h2>
             <span>ENVIRONMENTAL INTELLIGENCE</span>
           </div>
-
-          <button
-            className="close-menu"
-            onClick={() => setMobileMenu(false)}
-            aria-label="Close menu"
-          >
-            <X size={20} />
-          </button>
         </div>
 
-        <div className="nav-heading">WORKSPACE</div>
-
+        <div className="nav-label">WORKSPACE</div>
         <nav className="navigation">
-          {NAV_ITEMS.map((item) => {
-            const Icon = item.icon;
-
-            return (
-              <button
-                key={item.id}
-                className={`nav-item ${
-                  activePage === item.id ? "active" : ""
-                }`}
-                onClick={() => scrollToSection(item.id)}
-              >
-                <Icon size={18} />
-                <span>{item.label}</span>
-              </button>
-            );
-          })}
+          <a className="nav-item active" href="#overview">
+            <LayoutDashboard size={18} />
+            Overview
+          </a>
+          <a className="nav-item" href="#district-map">
+            <Map size={18} />
+            Gujarat Risk Map
+          </a>
+          <a className="nav-item" href="#districts">
+            <Map size={18} />
+            District Monitoring
+          </a>
+          <a className="nav-item" href="#flood">
+            <Waves size={18} />
+            Flood Analysis
+          </a>
+          <a className="nav-item" href="#drought">
+            <Wind size={18} />
+            Drought Analysis
+          </a>
+          <a className="nav-item" href="#alerts">
+            <Bell size={18} />
+            Risk Alerts
+          </a>
         </nav>
 
         <div className="sidebar-bottom">
-          <div className="sidebar-status">
-            <span className="online-dot"></span>
-
+          <div className="system-status">
+            <span className="status-dot" />
             <div>
               <strong>System Online</strong>
               <span>Monitoring Gujarat</span>
             </div>
           </div>
-
-          <div className="sidebar-footer">
-            AquaSentinel · 2026
-          </div>
+          <div className="sidebar-footer">AquaSentinel · 2026</div>
         </div>
       </aside>
 
-      {/* MAIN CONTENT */}
-
-      <main className="main-content">
-
-        {/* TOPBAR */}
-
+      <main className="main-content" id="overview">
         <header className="topbar">
-          <button
-            className="mobile-menu-button"
-            onClick={() => setMobileMenu(true)}
-            aria-label="Open menu"
-          >
-            <Menu size={21} />
-          </button>
-
-          <div className="breadcrumb">
-            Workspace / {activePage.replaceAll("-", " ")}
+          <div>
+            <div className="breadcrumb">Workspace / Overview</div>
+            <h1>Environmental Overview</h1>
+            <p>Flood and drought intelligence for Gujarat, India</p>
           </div>
 
-          <button
-            className="refresh-button"
-            onClick={fetchData}
-            disabled={loading}
-          >
-            <RefreshCw
-              size={16}
-              className={loading ? "spin" : ""}
-            />
+          <button className="refresh-button" onClick={fetchData}>
+            <RefreshCw size={16} />
             Refresh Data
           </button>
         </header>
 
-        {/* ==========================================
-            1. OVERVIEW
-        ========================================== */}
-
-        <section id="overview" className="dashboard-section">
-
-          <div className="page-heading">
-            <div>
-              <h1>Environmental Overview</h1>
-              <p>
-                Flood and drought intelligence for Gujarat, India
-              </p>
-            </div>
+        {error && (
+          <div className="error-banner">
+            <AlertTriangle size={18} />
+            <span>{error}</span>
+            <button onClick={fetchData}>Retry</button>
           </div>
+        )}
 
-          {/* DATA DATES */}
-
-          <div className="date-strip">
-            <div className="date-label">
-              <Activity size={17} />
-              <span>Latest available observations</span>
-            </div>
-
-            <div className="date-values">
-              <span>
-                Drought: <strong>{droughtDate}</strong>
-              </span>
-
-              <span>
-                Flood: <strong>{floodDate}</strong>
-              </span>
-            </div>
+        {loading ? (
+          <div className="loading-panel">
+            <RefreshCw className="spin" size={25} />
+            <p>Loading district intelligence...</p>
           </div>
+        ) : (
+          <>
+            <section className="date-strip">
+              <div>
+                <Activity size={17} />
+                <span>Latest available observations</span>
+              </div>
+              <div className="date-values">
+                <span>Drought: <strong>{data?.drought_data_date || "N/A"}</strong></span>
+                <span>Flood: <strong>{data?.flood_data_date || "N/A"}</strong></span>
+              </div>
+            </section>
 
-          {/* ERROR */}
+            <section className="stats-grid">
+              <StatCard
+                icon={<Map size={20} />}
+                label="Districts Monitored"
+                value={data?.total_districts ?? 0}
+                detail="Across Gujarat"
+                color="blue"
+              />
+              <StatCard
+                icon={<AlertTriangle size={20} />}
+                label="Critical Alerts"
+                value={summary.critical}
+                detail="Highest alert priority"
+                color="red"
+              />
+              <StatCard
+                icon={<CloudRain size={20} />}
+                label="High Flood Risk"
+                value={summary.floodHigh}
+                detail="High and very high"
+                color="orange"
+              />
+              <StatCard
+                icon={<Gauge size={20} />}
+                label="Drought Affected"
+                value={summary.droughtAffected}
+                detail="Moderate to extreme"
+                color="purple"
+              />
+            </section>
 
-          {error && (
-            <div className="error-banner">
-              <AlertTriangle size={18} />
-              <span>{error}</span>
-              <button onClick={fetchData}>Retry</button>
-            </div>
-          )}
+            <section className="dashboard-section" id="district-map">
+              <div className="section-heading map-section-heading">
+                <div>
+                  <h2>Gujarat District Risk Map</h2>
+                  <p>Interactive district-level flood risk and machine-learning warnings</p>
+                </div>
+                <div className="map-mode-switch" role="group" aria-label="Map display mode">
+                  <button className={mapMode === "flood" ? "selected" : ""} onClick={() => setMapMode("flood")}>Flood Risk</button>
+                  <button className={mapMode === "ml" ? "selected" : ""} onClick={() => setMapMode("ml")}>ML Warning</button>
+                </div>
+              </div>
+              <div className="map-layout">
+                <div className="panel gujarat-map-panel">
+                  {geoJson ? (
+                    <GujaratRiskMap
+                      geoJson={geoJson}
+                      districts={districts}
+                      floodDistricts={floodDistricts}
+                      mode={mapMode}
+                      selectedDistrict={selectedMapDistrict}
+                      onSelect={setSelectedMapDistrict}
+                    />
+                  ) : (
+                    <div className="map-placeholder">
+                      <Map size={26} />
+                      <strong>{geoError || "Loading Gujarat district boundaries..."}</strong>
+                      <span>Expected file: frontend/public/data/gujarat_districts.geojson</span>
+                    </div>
+                  )}
+                  <div className="map-legend">
+                    {mapMode === "flood" ? <>
+                      <LegendItem color="#ef4444" label="Very High" />
+                      <LegendItem color="#f97316" label="High" />
+                      <LegendItem color="#eab308" label="Moderate" />
+                      <LegendItem color="#22c55e" label="Low" />
+                      <LegendItem color="#64748b" label="No data" />
+                    </> : <>
+                      <LegendItem color="#ef4444" label="Warning issued" />
+                      <LegendItem color="#22c55e" label="No warning" />
+                      <LegendItem color="#64748b" label="No ML data" />
+                    </>}
+                  </div>
+                </div>
+                <div className="panel map-detail-panel">
+                  <div className="panel-heading">
+                    <div><h3>{selectedMapDistrict?.district || "District details"}</h3><p>{selectedMapDistrict ? "Selected district intelligence" : "Select a district on the map"}</p></div>
+                  </div>
+                  {selectedMapDistrict ? (
+                    <DistrictMapDetails district={selectedMapDistrict} floodDistricts={floodDistricts} />
+                  ) : (
+                    <div className="map-empty-detail"><Map size={25} /><span>Click any district to inspect its latest flood and drought indicators.</span></div>
+                  )}
+                </div>
+              </div>
+              <p className="map-method-note">Flood colours use the backend rule-based risk classification. ML Warning mode shows the model's extreme-rainfall warning where that field is returned by the flood API; it is not a confirmed flood prediction.</p>
+            </section>
 
-          {/* OVERVIEW CARDS */}
-
-          <section className="stats-grid">
-
-            <StatCard
-              icon={Map}
-              label="Districts Monitored"
-              value={stats.districts}
-              subtitle="Across Gujarat"
-              color="blue"
-            />
-
-            <StatCard
-              icon={AlertTriangle}
-              label="Critical Alerts"
-              value={stats.critical}
-              subtitle="Highest alert priority"
-              color="red"
-            />
-
-            <StatCard
-              icon={Waves}
-              label="High Flood Risk"
-              value={stats.highFlood}
-              subtitle="High and very high"
-              color="orange"
-            />
-
-            <StatCard
-              icon={Gauge}
-              label="Drought Affected"
-              value={stats.droughtAffected}
-              subtitle="Moderate to extreme"
-              color="purple"
-            />
-
-            <StatCard
-              icon={BrainCircuit}
-              label="ML Rainfall Warnings"
-              value={stats.mlWarnings}
-              subtitle="Next-day extreme-rainfall alerts"
-              color="orange"
-            />
-
-          </section>
-
-          {/* ==========================================
-              2. RISK INTELLIGENCE
-          ========================================== */}
-
-          <section className="dashboard-section" id="flood">
-
-            <div className="section-heading">
+            <section className="section-heading">
               <div>
                 <h2>Risk Intelligence</h2>
-                <p>
-                  District-level environmental risk indicators
-                </p>
+                <p>District-level environmental risk indicators</p>
               </div>
-
-              <span className="api-status">
-                <span className="online-dot"></span>
-                API CONNECTED
+              <span className="live-label">
+                <span className="status-dot" /> API CONNECTED
               </span>
-            </div>
+            </section>
 
-            <div className="charts-grid">
-
-              {/* FLOOD CHART */}
-
-              <div className="panel chart-panel">
-
+            <section className="charts-grid">
+              <div className="panel chart-panel" id="flood">
                 <div className="panel-heading">
                   <div>
                     <h3>Flood Risk by District</h3>
-                    <p>
-                      Top 8 districts by current flood score
-                    </p>
+                    <p>Top 8 districts by current flood score</p>
                   </div>
-
-                  <div className="panel-icon blue">
+                  <span className="panel-icon blue-icon">
                     <Waves size={19} />
-                  </div>
+                  </span>
                 </div>
 
-                <div className="chart-container">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart
-                      data={floodChartData}
-                      margin={{
-                        top: 10,
-                        right: 10,
-                        left: 0,
-                        bottom: 5,
-                      }}
-                    >
-                      <CartesianGrid
-                        strokeDasharray="3 3"
-                        stroke="#26364a"
-                      />
-
-                      <XAxis
-                        dataKey="district"
-                        tick={{
-                          fill: "#91a7c1",
-                          fontSize: 10,
-                        }}
-                        angle={-15}
-                        textAnchor="end"
-                        height={55}
-                      />
-
-                      <YAxis
-                        domain={[0, 100]}
-                        tick={{
-                          fill: "#91a7c1",
-                          fontSize: 11,
-                        }}
-                      />
-
+                {chartData.length ? (
+                  <ResponsiveContainer width="100%" height={280}>
+                    <BarChart data={chartData} margin={{ top: 15, right: 8, left: -15, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#293343" />
+                      <XAxis dataKey="district" tick={{ fill: "#94a3b8", fontSize: 11 }} axisLine={false} tickLine={false} />
+                      <YAxis domain={[0, 100]} tick={{ fill: "#94a3b8", fontSize: 11 }} axisLine={false} tickLine={false} />
                       <Tooltip
-                        contentStyle={{
-                          background: "#111d2c",
-                          border: "1px solid #293c52",
-                          borderRadius: "8px",
-                          color: "#fff",
-                        }}
+                        contentStyle={{ background: "#151e2c", border: "1px solid #334155", borderRadius: 8 }}
+                        labelStyle={{ color: "#fff" }}
                       />
-
-                      <Bar
-                        dataKey="score"
-                        name="Flood Risk Score"
-                        fill="#38bdf8"
-                        radius={[5, 5, 0, 0]}
-                      />
+                      <Bar dataKey="flood" name="Flood score" fill="#38bdf8" radius={[5, 5, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
-                </div>
+                ) : (
+                  <EmptyChart />
+                )}
               </div>
 
-              {/* ALERT DISTRIBUTION */}
-
               <div className="panel chart-panel">
-
                 <div className="panel-heading">
                   <div>
                     <h3>Overall Alert Distribution</h3>
-                    <p>
-                      Districts grouped by alert priority
-                    </p>
+                    <p>Districts grouped by alert priority</p>
                   </div>
-
-                  <div className="panel-icon purple">
+                  <span className="panel-icon purple-icon">
                     <ShieldCheck size={19} />
+                  </span>
+                </div>
+
+                {alertData.length ? (
+                  <>
+                    <ResponsiveContainer width="100%" height={220}>
+                      <PieChart>
+                        <Pie
+                          data={alertData}
+                          dataKey="value"
+                          nameKey="name"
+                          innerRadius={58}
+                          outerRadius={85}
+                          paddingAngle={3}
+                        >
+                          {alertData.map((entry) => (
+                            <Cell key={entry.name} fill={entry.color} />
+                          ))}
+                        </Pie>
+                        <Tooltip
+                          contentStyle={{ background: "#151e2c", border: "1px solid #334155", borderRadius: 8 }}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                    <div className="chart-legend">
+                      {alertData.map((item) => (
+                        <span key={item.name}>
+                          <i style={{ background: item.color }} />
+                          {item.name}: {item.value}
+                        </span>
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <EmptyChart />
+                )}
+              </div>
+            </section>
+
+            <section className="dashboard-section" id="drought">
+              <div className="section-heading">
+                <div>
+                  <h2>Drought Analysis</h2>
+                  <p>Latest district-level drought conditions using the Standardized Precipitation Index (SPI-3)</p>
+                </div>
+                <span className="record-count">{droughtSeverityCount} affected districts</span>
+              </div>
+
+              <div className="charts-grid drought-charts-grid">
+                <div className="panel chart-panel">
+                  <div className="panel-heading">
+                    <div>
+                      <h3>Drought Intensity by District</h3>
+                      <p>Higher bars indicate more negative SPI-3 values and greater drought severity</p>
+                    </div>
+                    <span className="panel-icon purple-icon"><Wind size={19} /></span>
+                  </div>
+                  {droughtChartData.length ? (
+                    <ResponsiveContainer width="100%" height={300}>
+                      <BarChart data={droughtChartData} margin={{ top: 12, right: 12, left: 5, bottom: 8 }}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#293343" />
+                        <XAxis dataKey="district" tick={{ fill: "#94a3b8", fontSize: 10 }} axisLine={false} tickLine={false} interval={0} angle={-25} textAnchor="end" height={65} />
+                        <YAxis
+                          domain={[0, "auto"]}
+                          tick={{ fill: "#94a3b8", fontSize: 11 }}
+                          axisLine={false}
+                          tickLine={false}
+                          tickFormatter={(value) => `-${Number(value).toFixed(1)}`}
+                          label={{ value: "SPI-3", angle: -90, position: "insideLeft", fill: "#94a3b8" }}
+                        />
+                        <Tooltip
+                          cursor={false}
+                          formatter={(value) => [`-${Number(value).toFixed(2)}`, "SPI-3"]}
+                          contentStyle={{ background: "#151e2c", border: "1px solid #334155", borderRadius: 8 }}
+                          labelStyle={{ color: "#fff" }}
+                        />
+                        <Bar dataKey="severity" name="SPI-3 magnitude" fill="#a78bfa" radius={[5, 5, 0, 0]} activeBar={false} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  ) : <EmptyChart />}
+                </div>
+
+                <div className="panel chart-panel">
+                  <div className="panel-heading">
+                    <div>
+                      <h3>Drought Severity Distribution</h3>
+                      <p>Latest status across monitored districts</p>
+                    </div>
+                    <span className="panel-icon purple-icon"><Gauge size={19} /></span>
+                  </div>
+                  {droughtSeverityData.length ? (
+                    <>
+                      <ResponsiveContainer width="100%" height={220}>
+                        <PieChart>
+                          <Pie data={droughtSeverityData} dataKey="value" nameKey="name" innerRadius={55} outerRadius={82} paddingAngle={3}>
+                            {droughtSeverityData.map((entry) => <Cell key={entry.name} fill={entry.color} />)}
+                          </Pie>
+                          <Tooltip contentStyle={{ background: "#151e2c", border: "1px solid #334155", borderRadius: 8 }} />
+                        </PieChart>
+                      </ResponsiveContainer>
+                      <div className="chart-legend">
+                        {droughtSeverityData.map((item) => (
+                          <span key={item.name}><i style={{ background: item.color }} />{item.name}: {item.value}</span>
+                        ))}
+                      </div>
+                    </>
+                  ) : <EmptyChart />}
+                </div>
+              </div>
+
+              <div className="panel table-panel drought-table-panel">
+                <div className="panel-heading drought-table-heading">
+                  <div>
+                    <h3>District Drought Status</h3>
+                    <p>Latest available SPI-3 reading and drought classification</p>
                   </div>
                 </div>
-
-                <div className="chart-container">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={alertDistribution}
-                        dataKey="value"
-                        nameKey="name"
-                        cx="50%"
-                        cy="45%"
-                        innerRadius={48}
-                        outerRadius={78}
-                        paddingAngle={2}
-                      >
-                        {alertDistribution.map((entry) => (
-                          <Cell
-                            key={entry.name}
-                            fill={ALERT_COLORS[entry.name]}
-                          />
-                        ))}
-                      </Pie>
-
-                      <Tooltip
-                        contentStyle={{
-                          background: "#111d2c",
-                          border: "1px solid #293c52",
-                          borderRadius: "8px",
-                          color: "#fff",
-                        }}
-                      />
-
-                      <Legend
-                        verticalAlign="bottom"
-                        formatter={(value) => (
-                          <span className="legend-text">
-                            {value}
-                          </span>
-                        )}
-                      />
-                    </PieChart>
-                  </ResponsiveContainer>
+                <div className="table-scroll">
+                  <table>
+                    <thead><tr><th>District</th><th>SPI-3</th><th>Drought Status</th><th>Overall Alert</th></tr></thead>
+                    <tbody>
+                      {[...districts].sort((a, b) => {
+                        const av = a.drought?.spi_3 == null ? Infinity : Number(a.drought.spi_3);
+                        const bv = b.drought?.spi_3 == null ? Infinity : Number(b.drought.spi_3);
+                        return av - bv;
+                      }).map((item) => (
+                        <tr key={`drought-${item.district}`}>
+                          <td className="district-name">{item.district}</td>
+                          <td>{item.drought?.spi_3 != null && Number.isFinite(Number(item.drought.spi_3)) ? Number(item.drought.spi_3).toFixed(2) : "—"}</td>
+                          <td><span className={`status-pill ${getAlertClass(item.drought?.status)}`}>{item.drought?.status || "Insufficient Data"}</span></td>
+                          <td><span className={`status-pill ${getAlertClass(item.overall_alert)}`}>{item.overall_alert || "Insufficient Data"}</span></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               </div>
+              <p className="map-method-note">Interpretation: more negative SPI-3 values indicate drier-than-usual conditions. These charts summarize the latest available district observations; they do not show a historical SPI trend.</p>
+            </section>
 
-            </div>
-          </section>
-
-          {/* ==========================================
-              3. AI EARLY WARNING CENTRE
-          ========================================== */}
-
-          <section
-            className="dashboard-section"
-            id="ml-warning"
-          >
-
-            <div className="section-heading">
+            <section className="section-heading table-title" id="districts">
               <div>
-                <h2>AI Early Warning Centre</h2>
-                <p>
-                  XGBoost-based next-day extreme-rainfall predictions
-                </p>
+                <h2>District Risk Monitoring</h2>
+                <p>Current drought, flood and combined alert status</p>
               </div>
+              <span className="record-count">{filteredDistricts.length} districts</span>
+            </section>
 
-              <span className="api-status">
-                <span
-                  className={
-                    modelStatus.available
-                      ? "online-dot"
-                      : "offline-dot"
-                  }
-                ></span>
-
-                {modelStatus.available
-                  ? "MODEL ACTIVE"
-                  : "MODEL UNAVAILABLE"}
-              </span>
-            </div>
-
-            {/* MODEL INFORMATION */}
-
-            <div className="panel">
-
-              <div className="panel-heading">
-                <div>
-                  <h3>
-                    <BrainCircuit
-                      size={19}
-                      style={{
-                        display: "inline",
-                        marginRight: "8px",
-                        verticalAlign: "middle",
-                      }}
-                    />
-                    XGBoost Prediction Model
-                  </h3>
-
-                  <p>
-                    Machine learning assessment of next-day extreme rainfall
-                  </p>
-                </div>
-              </div>
-
-              <div className="drought-summary">
-
-                <div>
-                  <strong>
-                    {stats.mlWarnings}
-                  </strong>
-
-                  <span>
-                    Districts with active ML warnings
-                  </span>
-                </div>
-
-                <div>
-                  <strong>
-                    {modelStatus.available &&
-                    modelStatus.test_f1 != null
-                      ? `${(
-                          Number(modelStatus.test_f1) * 100
-                        ).toFixed(1)}%`
-                      : "N/A"}
-                  </strong>
-
-                  <span>
-                    Model test F1 score
-                  </span>
-                </div>
-
-                <div>
-                  <strong>
-                    {modelStatus.available &&
-                    modelStatus.test_pr_auc != null
-                      ? Number(modelStatus.test_pr_auc).toFixed(3)
-                      : "N/A"}
-                  </strong>
-
-                  <span>
-                    Test PR-AUC
-                  </span>
-                </div>
-
-                <div>
-                  <strong>
-                    {modelStatus.available &&
-                    modelStatus.decision_threshold != null
-                      ? Number(
-                          modelStatus.decision_threshold
-                        ).toFixed(2)
-                      : "N/A"}
-                  </strong>
-
-                  <span>
-                    Decision threshold
-                  </span>
-                </div>
-
-              </div>
-
-              <p className="method-note">
-                {modelStatus.prediction_target ||
-                  "Prediction target information is unavailable."}
-              </p>
-
-              <p className="method-note">
-                {modelStatus.warning ||
-                  "The model warning is an extreme-rainfall proxy, not verified flood occurrence or calibrated flood probability."}
-              </p>
-
-            </div>
-
-            {/* ACTIVE WARNINGS TABLE */}
-
-            <div className="panel table-panel">
-
-              <div className="panel-heading">
-                <div>
-                  <h3>Active ML Warnings</h3>
-                  <p>
-                    Districts flagged by the XGBoost classifier
-                  </p>
-                </div>
-
-                <div className="panel-icon">
-                  <CloudRain size={19} />
-                </div>
-              </div>
-
-              <div className="table-wrapper">
-
-                <table>
-                  <thead>
-                    <tr>
-                      <th>District</th>
-                      <th>ML Score</th>
-                      <th>Decision Threshold</th>
-                      <th>Flood Risk</th>
-                      <th>Warning</th>
-                    </tr>
-                  </thead>
-
-                  <tbody>
-
-                    {mlWarningDistricts.map((item) => (
-                      <tr key={item.district}>
-
-                        <td>
-                          <strong>{item.district}</strong>
-                        </td>
-
-                        <td>
-                          {item.flood?.extreme_rainfall_model_score != null
-                            ? `${Number(
-                                item.flood.extreme_rainfall_model_score
-                              ).toFixed(2)} / 100`
-                            : "N/A"}
-                        </td>
-
-                        <td>
-                          {item.flood?.model_decision_threshold != null
-                            ? Number(
-                                item.flood.model_decision_threshold
-                              ).toFixed(2)
-                            : "N/A"}
-                        </td>
-
-                        <td>
-                          <StatusPill
-                            status={item.flood?.status}
-                          />
-                        </td>
-
-                        <td>
-                          <span className="status-pill high">
-                            Active
-                          </span>
-                        </td>
-
-                      </tr>
-                    ))}
-
-                    {mlWarningDistricts.length === 0 && (
-                      <tr>
-                        <td colSpan="5" className="empty-row">
-                          No active extreme-rainfall warnings.
-                        </td>
-                      </tr>
-                    )}
-
-                  </tbody>
-                </table>
-
-              </div>
-
-              <div className="table-footer">
-                Showing {mlWarningDistricts.length} active ML warnings
-                across {data.length} districts
-              </div>
-
-            </div>
-
-          </section>
-
-          {/* ==========================================
-              4. DROUGHT ANALYSIS
-          ========================================== */}
-
-          <section
-            className="dashboard-section"
-            id="drought"
-          >
-
-            <div className="section-heading">
-              <div>
-                <h2>Drought Analysis</h2>
-                <p>
-                  Standardized Precipitation Index (SPI-3) by district
-                </p>
-              </div>
-            </div>
-
-            <div className="panel drought-panel">
-
-              <div className="drought-summary">
-
-                <div>
-                  <strong>{stats.droughtAffected}</strong>
-                  <span>
-                    Districts showing drought conditions
-                  </span>
-                </div>
-
-                <div>
-                  <strong>{droughtDate}</strong>
-                  <span>
-                    Latest available SPI observation
-                  </span>
-                </div>
-
-              </div>
-
-              <p className="method-note">
-                Drought classifications are based on the calculated
-                SPI-3 indicator. They represent rainfall anomaly
-                conditions, not a guaranteed forecast of future drought.
-              </p>
-
-            </div>
-
-          </section>
-
-          {/* ==========================================
-              5. DISTRICT MONITORING
-          ========================================== */}
-
-          <section
-            className="dashboard-section"
-            id="districts"
-          >
-
-            <div className="section-heading">
-              <div>
-                <h2>District Monitoring</h2>
-                <p>
-                  Unified flood and drought status across Gujarat
-                </p>
-              </div>
-            </div>
-
-            <div className="panel table-panel">
-
-              {/* SEARCH AND FILTER */}
-
+            <section className="panel table-panel" id="alerts">
               <div className="table-controls">
-
                 <div className="search-box">
-                  <Search size={16} />
-
+                  <Search size={17} />
                   <input
-                    type="text"
-                    placeholder="Search district..."
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Search district..."
                   />
                 </div>
-
-                <select
-                  value={filter}
-                  onChange={(e) => setFilter(e.target.value)}
-                >
-                  <option value="All">All alerts</option>
-                  <option value="Critical">Critical</option>
-                  <option value="High">High</option>
-                  <option value="Moderate">Moderate</option>
-                  <option value="Low">Low</option>
-                  <option value="Normal">Normal</option>
-                  <option value="Insufficient Data">
-                    Insufficient Data
-                  </option>
+                <select value={filter} onChange={(e) => setFilter(e.target.value)}>
+                  <option>All</option>
+                  <option>Critical</option>
+                  <option>High</option>
+                  <option>Moderate</option>
+                  <option>Low</option>
+                  <option>Normal</option>
                 </select>
-
               </div>
 
-              {/* DISTRICT TABLE */}
-
-              <div className="table-wrapper">
-
+              <div className="table-scroll">
                 <table>
                   <thead>
                     <tr>
@@ -1008,183 +598,145 @@ function App() {
                       <th>Drought Status</th>
                       <th>Flood Score</th>
                       <th>Flood Status</th>
-                      <th>ML Warning</th>
                       <th>Overall Alert</th>
                     </tr>
                   </thead>
-
                   <tbody>
-
                     {filteredDistricts.map((item) => (
                       <tr key={item.district}>
-
+                        <td className="district-name">{item.district}</td>
+                        <td>{Number.isFinite(Number(item.drought?.spi_3))
+                          ? Number(item.drought.spi_3).toFixed(2)
+                          : "—"}</td>
                         <td>
-                          <strong>{item.district}</strong>
+                          <span className={`status-pill ${getAlertClass(item.drought?.status)}`}>
+                            {item.drought?.status || "Insufficient Data"}
+                          </span>
                         </td>
-
+                        <td>{item.flood?.risk_score ?? "—"}</td>
                         <td>
-                          {Number.isFinite(
-                            Number(item.drought?.spi_3)
-                          )
-                            ? Number(
-                                item.drought.spi_3
-                              ).toFixed(2)
-                            : "N/A"}
+                          <span className={`status-pill ${getAlertClass(item.flood?.status)}`}>
+                            {item.flood?.status || "Insufficient Data"}
+                          </span>
                         </td>
-
                         <td>
-                          <StatusPill
-                            status={item.drought?.status}
-                          />
+                          <span className={`status-pill ${getAlertClass(item.overall_alert)}`}>
+                            {item.overall_alert || "Insufficient Data"}
+                          </span>
                         </td>
-
-                        <td>
-                          {item.flood?.risk_score ?? "N/A"}
-                        </td>
-
-                        <td>
-                          <StatusPill
-                            status={item.flood?.status}
-                          />
-                        </td>
-
-                        <td>
-                          {item.flood?.extreme_rainfall_warning === true ? (
-                            <span className="status-pill high">
-                              Active
-                            </span>
-                          ) : item.flood?.extreme_rainfall_warning === false ? (
-                            <span className="status-pill normal">
-                              No Warning
-                            </span>
-                          ) : (
-                            "N/A"
-                          )}
-                        </td>
-
-                        <td>
-                          <StatusPill
-                            status={item.overall_alert}
-                          />
-                        </td>
-
                       </tr>
                     ))}
-
-                    {filteredDistricts.length === 0 && (
+                    {!filteredDistricts.length && (
                       <tr>
-                        <td colSpan="7" className="empty-row">
-                          No matching districts found.
-                        </td>
+                        <td colSpan="6" className="no-results">No matching districts found.</td>
                       </tr>
                     )}
-
                   </tbody>
                 </table>
-
               </div>
+            </section>
 
-              <div className="table-footer">
-                Showing {filteredDistricts.length} of{" "}
-                {data.length} districts
-              </div>
-
-            </div>
-
-          </section>
-
-          {/* ==========================================
-              6. RISK ALERTS
-          ========================================== */}
-
-          <section
-            className="dashboard-section"
-            id="alerts"
-          >
-
-            <div className="section-heading">
-              <div>
-                <h2>Risk Alerts</h2>
-                <p>
-                  Districts requiring attention based on combined indicators
-                </p>
-              </div>
-            </div>
-
-            <div className="panel alerts-panel">
-
-              {data
-                .filter((item) =>
-                  ["Critical", "High"].includes(
-                    item.overall_alert
-                  )
-                )
-                .map((item) => (
-
-                  <div
-                    className="alert-row"
-                    key={item.district}
-                  >
-
-                    <div className="alert-indicator">
-                      <AlertTriangle size={18} />
-                    </div>
-
-                    <div className="alert-details">
-                      <strong>{item.district}</strong>
-
-                      <span>
-                        Drought: {item.drought?.status || "N/A"}
-                        {" · "}
-                        Flood: {item.flood?.status || "N/A"}
-                        {item.flood?.extreme_rainfall_warning === true
-                          ? " · ML Warning Active"
-                          : ""}
-                      </span>
-                    </div>
-
-                    <StatusPill
-                      status={item.overall_alert}
-                    />
-
-                  </div>
-
-                ))}
-
-              {data.filter((item) =>
-                ["Critical", "High"].includes(
-                  item.overall_alert
-                )
-              ).length === 0 && (
-                <p className="empty-row">
-                  No high-priority alerts.
-                </p>
-              )}
-
-            </div>
-
-          </section>
-
-          {/* FOOTER */}
-
-          <footer className="page-footer">
-
-            <span>
-              AquaSentinel · Environmental Intelligence Workspace
-            </span>
-
-            <span>
-              Gujarat, India · 2026
-            </span>
-
-          </footer>
-
-        </section>
-
+            <footer className="page-footer">
+              <span>AquaSentinel · Flood & Drought Early Warning System</span>
+              <span>Data-driven environmental monitoring · Gujarat, India</span>
+            </footer>
+          </>
+        )}
       </main>
-
     </div>
   );
+}
+
+function normalizeDistrictName(value = "") {
+  const key = value.toLowerCase().replace(/[^a-z]/g, "");
+  const aliases = {
+    ahmedabad: "ahmadabad", banaskantha: "banaskantha", kachchh: "kachchh",
+    kutch: "kachchh", dahod: "dohad", mehsana: "mahesana", panchmahal: "panchmahals",
+    sabarkantha: "sabarkantha", aravalli: "arvalli", chhotaudepur: "chhotaudepur",
+  };
+  return aliases[key] || key;
+}
+
+function featureDistrictName(feature) {
+  const p = feature?.properties || {};
+  const candidates = ["district", "DISTRICT", "District", "DIST_NAME", "dtname", "DTNAME", "NAME_2", "name_2", "name", "NAME"];
+  for (const key of candidates) if (p[key]) return String(p[key]);
+  return "Unknown district";
+}
+
+function findFloodRecord(name, floodDistricts) {
+  const normalized = normalizeDistrictName(name);
+  return floodDistricts.find((item) => normalizeDistrictName(item.district || item.name) === normalized);
+}
+
+function districtColor(item, floodRecord, mode) {
+  if (mode === "ml") {
+    const warning = floodRecord?.extreme_rainfall_warning ?? floodRecord?.ml_warning ?? floodRecord?.warning;
+    if (warning === true) return "#ef4444";
+    if (warning === false) return "#22c55e";
+    return "#64748b";
+  }
+  const level = item?.flood?.status || floodRecord?.risk_level || floodRecord?.risk_status || "Insufficient Data";
+  return ({ "Very High": "#ef4444", High: "#f97316", Moderate: "#eab308", Low: "#22c55e", "Insufficient Data": "#64748b" })[level] || "#64748b";
+}
+
+function GujaratRiskMap({ geoJson, districts, floodDistricts, mode, selectedDistrict, onSelect }) {
+  const lookup = (name) => districts.find((d) => normalizeDistrictName(d.district) === normalizeDistrictName(name));
+  const style = (feature) => {
+    const name = featureDistrictName(feature);
+    const item = lookup(name);
+    const floodRecord = findFloodRecord(name, floodDistricts);
+    const selected = selectedDistrict && normalizeDistrictName(selectedDistrict.district) === normalizeDistrictName(name);
+    return { fillColor: districtColor(item, floodRecord, mode), fillOpacity: selected ? 0.9 : 0.68, color: selected ? "#ffffff" : "#cbd5e1", weight: selected ? 2.5 : 1, opacity: 0.9 };
+  };
+  const onEachFeature = (feature, layer) => {
+    const name = featureDistrictName(feature);
+    const item = lookup(name);
+    const floodRecord = findFloodRecord(name, floodDistricts);
+    layer.bindTooltip(name, { sticky: true, className: "district-map-tooltip" });
+    layer.on({ click: () => onSelect({ district: item?.district || name, drought: item?.drought, flood: item?.flood, overall_alert: item?.overall_alert, ml: floodRecord }) });
+  };
+  return (
+    <MapContainer center={[22.5, 71.5]} zoom={6} minZoom={5} maxZoom={9} scrollWheelZoom={true} className="gujarat-leaflet-map">
+      <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+      <GeoJSON key={`${mode}-${selectedDistrict?.district || "none"}`} data={geoJson} style={style} onEachFeature={onEachFeature} />
+    </MapContainer>
+  );
+}
+
+function LegendItem({ color, label }) {
+  return <span className="map-legend-item"><i style={{ background: color }} />{label}</span>;
+}
+
+function DistrictMapDetails({ district, floodDistricts }) {
+  const ml = district.ml || findFloodRecord(district.district, floodDistricts);
+  const warning = ml?.extreme_rainfall_warning ?? ml?.ml_warning ?? ml?.warning;
+  const mlScore = ml?.ml_score ?? ml?.model_score ?? ml?.extreme_rainfall_score;
+  const rows = [
+    ["Flood risk score", district.flood?.risk_score ?? ml?.risk_score ?? "—"],
+    ["Flood status", district.flood?.status ?? ml?.risk_level ?? "Insufficient Data"],
+    ["Drought status", district.drought?.status ?? "—"],
+    ["SPI-3", Number.isFinite(Number(district.drought?.spi_3)) ? Number(district.drought.spi_3).toFixed(2) : "—"],
+    ["ML model score", mlScore != null ? `${Number(mlScore).toFixed(1)}%` : "Not returned by API"],
+    ["ML warning", warning === true ? "Warning issued" : warning === false ? "No warning" : "Not available"],
+    ["Latest flood data", district.flood?.date ?? ml?.date ?? "—"],
+  ];
+  return <div className="district-detail-list">{rows.map(([label, value]) => <div className="district-detail-row" key={label}><span>{label}</span><strong>{value}</strong></div>)}</div>;
+}
+
+function StatCard({ icon, label, value, detail, color }) {
+  return (
+    <div className="stat-card">
+      <div className={`stat-icon ${color}`}>{icon}</div>
+      <div className="stat-label">{label}</div>
+      <div className="stat-value">{value}</div>
+      <div className="stat-detail">{detail}</div>
+    </div>
+  );
+}
+
+function EmptyChart() {
+  return <div className="empty-chart">No chart data available.</div>;
 }
 
 export default App;
