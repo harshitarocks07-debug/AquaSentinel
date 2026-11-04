@@ -2280,3 +2280,96 @@ a {
     gap: 9px 14px;
   }
 }
+
+/* District intelligence details: keep labels and values clearly separated */
+.map-detail-panel .district-detail-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 14px;
+  width: 100%;
+}
+
+.map-detail-panel .district-detail-row {
+  display: grid;
+  grid-template-columns: minmax(112px, 0.9fr) minmax(0, 1.1fr);
+  align-items: start;
+  column-gap: 12px;
+  padding-bottom: 9px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.map-detail-panel .district-detail-row:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.map-detail-panel .district-detail-row span {
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.map-detail-panel .district-detail-row strong {
+  min-width: 0;
+  color: var(--text);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 600px) {
+  .map-detail-panel .district-detail-row {
+    grid-template-columns: 1fr;
+    row-gap: 2px;
+  }
+}
+/* Flood status colours */
+.status-pill.very-high {
+  background: rgba(239, 68, 68, 0.18) !important;
+  color: #f87171 !important;
+  border: 1px solid rgba(239, 68, 68, 0.35) !important;
+}
+
+.status-pill.high {
+  background: rgba(249, 115, 22, 0.18) !important;
+  color: #fb923c !important;
+  border: 1px solid rgba(249, 115, 22, 0.35) !important;
+}
+
+.status-pill.moderate {
+  background: rgba(234, 179, 8, 0.18) !important;
+  color: #facc15 !important;
+  border: 1px solid rgba(234, 179, 8, 0.35) !important;
+}
+
+.status-pill.low {
+  background: rgba(56, 189, 248, 0.16) !important;
+  color: #38bdf8 !important;
+  border: 1px solid rgba(56, 189, 248, 0.3) !important;
+}
+
+/* Drought status colours */
+.status-pill.extreme-drought {
+  background: rgba(239, 68, 68, 0.18) !important;
+  color: #f87171 !important;
+  border: 1px solid rgba(239, 68, 68, 0.35) !important;
+}
+
+.status-pill.severe-drought {
+  background: rgba(249, 115, 22, 0.18) !important;
+  color: #fb923c !important;
+  border: 1px solid rgba(249, 115, 22, 0.35) !important;
+}
+
+.status-pill.moderate-drought {
+  background: rgba(234, 179, 8, 0.18) !important;
+  color: #facc15 !important;
+  border: 1px solid rgba(234, 179, 8, 0.35) !important;
+}
+
+.status-pill.normal {
+  background: rgba(34, 197, 94, 0.18) !important;
+  color: #4ade80 !important;
+  border: 1px solid rgba(34, 197, 94, 0.35) !important;
+}
