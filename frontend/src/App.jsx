@@ -30,7 +30,7 @@ import {
   YAxis,
 } from "recharts";
 import "leaflet/dist/leaflet.css";
-import { GeoJSON, MapContainer, TileLayer, useMap } from "react-leaflet";
+import { GeoJSON, MapContainer, TileLayer } from "react-leaflet";
 import "./App.css";
 
 const API_URL = "http://127.0.0.1:8000/api/risk/latest";
@@ -148,6 +148,34 @@ function App() {
       color: "#22c55e",
     },
   ].filter((item) => item.value > 0);
+
+  // Drought analysis chart data derived from the unified risk API response.
+  const droughtChartData = districts
+    .filter((item) => item.drought?.spi_3 != null && Number.isFinite(Number(item.drought.spi_3)))
+    .map((item) => {
+      const spi = Number(item.drought.spi_3);
+      return {
+        district: item.district,
+        spi,
+        severity: Math.abs(spi),
+      };
+    })
+    .sort((a, b) => b.severity - a.severity)
+    .slice(0, 10);
+
+  const droughtSeverityData = [
+    { name: "Extreme Drought", value: districts.filter((d) => d.drought?.status === "Extreme Drought").length, color: "#991b1b" },
+    { name: "Severe Drought", value: districts.filter((d) => d.drought?.status === "Severe Drought").length, color: "#ef4444" },
+    { name: "Moderate Drought", value: districts.filter((d) => d.drought?.status === "Moderate Drought").length, color: "#f97316" },
+    { name: "Normal", value: districts.filter((d) => d.drought?.status === "Normal").length, color: "#22c55e" },
+  ].filter((item) => item.value > 0);
+
+  const droughtAffectedCount = districts.filter((d) =>
+    ["Extreme Drought", "Severe Drought", "Moderate Drought"].includes(d.drought?.status)
+  ).length;
+
+  // Plot absolute SPI-3 magnitude so more severe drought bars rise upward.
+  // Axis and tooltip labels retain the actual negative SPI-3 sign.
 
   // Inline badge colours avoid conflicting or missing CSS class rules.
   const getStatusStyle = (status) => {
@@ -450,6 +478,169 @@ function App() {
               </div>
             </section>
 
+            <section className="dashboard-section" id="drought">
+              <div className="section-heading">
+                <div>
+                  <h2>Drought Analysis</h2>
+                  <p>Latest district-level drought conditions using the Standardized Precipitation Index (SPI-3)</p>
+                </div>
+                <span className="record-count">{droughtAffectedCount} affected districts</span>
+              </div>
+
+              <div className="charts-grid">
+                <div className="panel chart-panel">
+                  <div className="panel-heading">
+                    <div>
+                      <h3>Lowest SPI-3 by District</h3>
+                      <p>Districts with the greatest drought severity (most negative SPI-3)</p>
+                    </div>
+                    <span className="panel-icon purple-icon">
+                      <Wind size={19} />
+                    </span>
+                  </div>
+
+                  {droughtChartData.length ? (
+                    <ResponsiveContainer width="100%" height={280}>
+                      <BarChart
+                        data={droughtChartData}
+                        margin={{ top: 15, right: 12, left: 8, bottom: 42 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#293343" />
+                        <XAxis
+                          dataKey="district"
+                          angle={-25}
+                          textAnchor="end"
+                          interval={0}
+                          height={55}
+                          tick={{ fill: "#94a3b8", fontSize: 10 }}
+                          axisLine={false}
+                          tickLine={false}
+                        />
+                        <YAxis
+                          type="number"
+                          domain={[0, "auto"]}
+                          tickCount={6}
+                          allowDecimals={true}
+                          tickFormatter={(value) => value === 0 ? "0.00" : `-${Number(value).toFixed(2)}`}
+                          width={58}
+                          tick={{ fill: "#94a3b8", fontSize: 11 }}
+                          axisLine={false}
+                          tickLine={false}
+                        />
+                        <Tooltip
+                          formatter={(value) => [`-${Number(value).toFixed(2)}`, "SPI-3"]}
+                          contentStyle={{ background: "#151e2c", border: "1px solid #334155", borderRadius: 8 }}
+                          labelStyle={{ color: "#fff" }}
+                        />
+                        <Bar dataKey="severity" name="SPI-3 magnitude" fill="#a78bfa" radius={[5, 5, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <EmptyChart />
+                  )}
+                </div>
+
+                <div className="panel chart-panel">
+                  <div className="panel-heading">
+                    <div>
+                      <h3>Drought Severity Distribution</h3>
+                      <p>Latest status across monitored districts</p>
+                    </div>
+                    <span className="panel-icon purple-icon">
+                      <Gauge size={19} />
+                    </span>
+                  </div>
+
+                  {droughtSeverityData.length ? (
+                    <>
+                      <ResponsiveContainer width="100%" height={220}>
+                        <PieChart>
+                          <Pie
+                            data={droughtSeverityData}
+                            dataKey="value"
+                            nameKey="name"
+                            innerRadius={58}
+                            outerRadius={85}
+                            paddingAngle={3}
+                          >
+                            {droughtSeverityData.map((entry) => (
+                              <Cell key={entry.name} fill={entry.color} />
+                            ))}
+                          </Pie>
+                          <Tooltip
+                            contentStyle={{ background: "#151e2c", border: "1px solid #334155", borderRadius: 8 }}
+                          />
+                        </PieChart>
+                      </ResponsiveContainer>
+                      <div className="chart-legend">
+                        {droughtSeverityData.map((item) => (
+                          <span key={item.name}>
+                            <i style={{ background: item.color }} />
+                            {item.name}: {item.value}
+                          </span>
+                        ))}
+                      </div>
+                    </>
+                  ) : (
+                    <EmptyChart />
+                  )}
+                </div>
+              </div>
+
+              <div className="panel table-panel drought-table-panel">
+                <div className="panel-heading">
+                  <div>
+                    <h3>District Drought Status</h3>
+                    <p>Latest available SPI-3 reading and drought classification</p>
+                  </div>
+                </div>
+                <div className="table-scroll">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>District</th>
+                        <th>SPI-3</th>
+                        <th>Drought Status</th>
+                        <th>Overall Alert</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {[...districts]
+                        .sort((a, b) => {
+                          const aValue = Number(a.drought?.spi_3);
+                          const bValue = Number(b.drought?.spi_3);
+                          return (Number.isFinite(aValue) ? aValue : Infinity) -
+                            (Number.isFinite(bValue) ? bValue : Infinity);
+                        })
+                        .map((item) => (
+                          <tr key={item.district}>
+                            <td className="district-name">{item.district}</td>
+                            <td>{Number.isFinite(Number(item.drought?.spi_3))
+                              ? Number(item.drought.spi_3).toFixed(2)
+                              : "—"}</td>
+                            <td>
+                              <span className="status-pill" style={getStatusStyle(item.drought?.status)}>
+                                {item.drought?.status || "Insufficient Data"}
+                              </span>
+                            </td>
+                            <td>
+                              <span className="status-pill" style={getStatusStyle(item.overall_alert)}>
+                                {item.overall_alert || "Insufficient Data"}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      {!districts.length && (
+                        <tr>
+                          <td colSpan="4" className="no-results">No drought data available.</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </section>
+
             <section className="section-heading table-title" id="districts">
               <div>
                 <h2>District Risk Monitoring</h2>
@@ -586,7 +777,7 @@ function GujaratRiskMap({ geoJson, districts, floodDistricts, mode, selectedDist
     layer.on({ click: () => onSelect({ district: item?.district || name, drought: item?.drought, flood: item?.flood, overall_alert: item?.overall_alert, ml: floodRecord }) });
   };
   return (
-    <MapContainer center={[22.5, 71.5]} zoom={6} minZoom={5} maxZoom={9} scrollWheelZoom={true} className="gujarat-leaflet-map">
+    <MapContainer center={[22.5, 71.5]} zoom={6} minZoom={5} maxZoom={9} scrollWheelZoom={true} className="gujarat-leaflet-map" style={{ height: 460, width: "100%" }}>
       <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
       <GeoJSON key={`${mode}-${selectedDistrict?.district || "none"}`} data={geoJson} style={style} onEachFeature={onEachFeature} />
     </MapContainer>

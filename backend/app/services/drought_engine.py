@@ -42,20 +42,40 @@ def classify_drought(spi):
 
 # Load SPI dataset
 def get_drought_data():
+
     if not SPI_FILE.exists():
-        return pd.DataFrame(
-            columns=["date", "district", "spi_3", "risk_level"]
+        raise FileNotFoundError(
+            f"SPI dataset not found: {SPI_FILE}"
         )
 
-    df = pd.read_csv(SPI_FILE, parse_dates=["date"])
+    df = pd.read_csv(SPI_FILE)
+
+    if "date" not in df.columns:
+        raise ValueError("SPI dataset is missing the date column")
+
+    if "district" not in df.columns:
+        raise ValueError("SPI dataset is missing the district column")
 
     if "spi_3" not in df.columns:
-        return pd.DataFrame(
-            columns=["date", "district", "spi_3", "risk_level"]
-        )
+        raise ValueError("SPI dataset is missing the spi_3 column")
 
+    # Explicitly convert dates to datetime
+    df["date"] = pd.to_datetime(
+        df["date"],
+        errors="coerce",
+        format="mixed"
+    )
+
+    # Remove invalid dates
+    df = df.dropna(subset=["date"]).copy()
+
+    # Normalize district names
+    df["district"] = df["district"].astype(str).str.strip()
+
+    # Convert SPI values to numeric
     df["spi_3"] = pd.to_numeric(
-        df["spi_3"], errors="coerce"
+        df["spi_3"],
+        errors="coerce"
     )
 
     df["risk_level"] = df["spi_3"].apply(classify_drought)
@@ -67,6 +87,13 @@ def get_drought_data():
 def get_district_drought_risk():
 
     df = get_drought_data()
+
+    if df.empty:
+        return {
+            "latest_date": None,
+            "total_districts": 0,
+            "districts": []
+        }
 
     latest_date = df["date"].max()
 
@@ -81,12 +108,8 @@ def get_district_drought_risk():
         na_position="last"
     )
 
-    # Convert dates to JSON-compatible strings
-    result["date"] = result["date"].dt.strftime(
-        "%Y-%m-%d"
-    )
+    result["date"] = result["date"].dt.strftime("%Y-%m-%d")
 
-    # Replace infinite and missing SPI values
     result["spi_3"] = result["spi_3"].replace(
         [float("inf"), float("-inf")],
         float("nan")
@@ -110,10 +133,8 @@ def get_drought_history(district):
     df = get_drought_data()
 
     district_df = df[
-        df["district"].str.upper() == district.upper()
-    ].sort_values(
-        "date"
-    ).copy()
+        df["district"].str.upper() == district.strip().upper()
+    ].sort_values("date").copy()
 
     if district_df.empty:
         return None
@@ -122,31 +143,18 @@ def get_drought_history(district):
         ["date", "spi_3", "risk_level"]
     ].copy()
 
-    # Convert dates into strings
-    history_df["date"] = history_df[
-        "date"
-    ].dt.strftime("%Y-%m-%d")
-
-    # Convert SPI values to numeric
-    history_df["spi_3"] = pd.to_numeric(
-        history_df["spi_3"],
-        errors="coerce"
+    history_df["date"] = history_df["date"].dt.strftime(
+        "%Y-%m-%d"
     )
 
-    # Replace infinite values
-    history_df["spi_3"] = history_df[
-        "spi_3"
-    ].replace(
+    history_df["spi_3"] = history_df["spi_3"].replace(
         [float("inf"), float("-inf")],
         float("nan")
     )
 
-    # Convert NaN values into None for JSON serialization
     history_df = history_df.astype(object).where(
         pd.notna(history_df),
         None
     )
 
-    return history_df.to_dict(
-        orient="records"
-    )
+    return history_df.to_dict(orient="records")
