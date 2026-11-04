@@ -1,0 +1,79 @@
+{
+    "model": "Random Forest Classifier",
+    "target": "Next-month SPI-derived drought category",
+    "accuracy": 0.8604392549346678,
+    "split_date": "2017-05-01",
+    "training_records": 14322,
+    "testing_records": 3597,
+    "classes": [
+        "Extreme Drought",
+        "Moderate Drought",
+        "Normal",
+        "Severe Drought"
+    ],
+    "classification_report": {
+        "Extreme Drought": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 11.0
+        },
+        "Moderate Drought": {
+            "precision": 0.267741935483871,
+            "recall": 0.5253164556962026,
+            "f1-score": 0.3547008547008547,
+            "support": 158.0
+        },
+        "Normal": {
+            "precision": 0.9737183646982479,
+            "recall": 0.8849896785608965,
+            "f1-score": 0.9272362119573614,
+            "support": 3391.0
+        },
+        "Severe Drought": {
+            "precision": 0.09649122807017543,
+            "recall": 0.2972972972972973,
+            "f1-score": 0.1456953642384106,
+            "support": 37.0
+        },
+        "accuracy": 0.8604392549346678,
+        "macro avg": {
+            "precision": 0.3344878820630736,
+            "recall": 0.4269008578885991,
+            "f1-score": 0.3569081077241567,
+            "support": 3597.0
+        },
+        "weighted avg": {
+            "precision": 0.9307068045417868,
+            "recall": 0.8604392549346678,
+            "f1-score": 0.8912125266241224,
+            "support": 3597.0
+        }
+    },
+    "confusion_matrix": [
+        [
+            0,
+            1,
+            9,
+            1
+        ],
+        [
+            5,
+            83,
+            54,
+            16
+        ],
+        [
+            84,
+            220,
+            3001,
+            86
+        ],
+        [
+            2,
+            6,
+            18,
+            11
+        ]
+    ]
+}

@@ -1,0 +1,97 @@
+{
+    "model": "XGBoostClassifier",
+    "target": "Next-day rainfall above district-specific training-period 95th percentile",
+    "warning": "Extreme-rainfall proxy; not verified flood occurrence or flood probability.",
+    "features": [
+        "rainfall_mm",
+        "rainfall_3d_mm",
+        "rainfall_7d_mm",
+        "rainfall_30d_mm",
+        "month",
+        "district"
+    ],
+    "train_end": "2012-11-27",
+    "validation_end": "2019-09-29",
+    "district_thresholds_mm": {
+        "Ahmadabad": 10.866339813243544,
+        "Amreli": 9.340603202828941,
+        "Anand": 13.833995772804789,
+        "Arvalli": 14.131833188609416,
+        "Banas Kantha": 9.580307640964895,
+        "Bharuch": 15.496563018658245,
+        "Bhavnagar": 10.886067782051446,
+        "Botad": 9.408945296466223,
+        "Chhotaudepur": 17.734544268113815,
+        "Dang": 28.36070149598437,
+        "Devbhumi Dwarka": 7.327567009369688,
+        "Dohad": 15.357093134868533,
+        "Gandhinagar": 12.655750757525915,
+        "Gir Somnath": 11.800069220158429,
+        "Jamnagar": 8.149280653236673,
+        "Junagadh": 10.893506541539816,
+        "Kachchh": 5.484997724870471,
+        "Kheda": 14.20617206372471,
+        "Mahesana": 10.84294162223244,
+        "Mahisagar": 14.410780788986527,
+        "Morbi": 7.745217321169431,
+        "Narmada": 18.779856451211405,
+        "Navsari": 31.491291261614084,
+        "Panch Mahals": 16.222840782485278,
+        "Patan": 8.00635653929381,
+        "Porbandar": 10.133164700352712,
+        "Rajkot": 9.832040059564214,
+        "Sabar Kantha": 13.741584560898296,
+        "Surat": 22.359514760641567,
+        "Surendranagar": 8.61057356152711,
+        "Tapi": 24.966507160592773,
+        "Vadodara": 15.805849236746864,
+        "Valsad": 35.38938671801435
+    },
+    "decision_threshold": 0.7999999999999996,
+    "validation_best_f1": 0.5627938213566152,
+    "test_accuracy": 0.9190543804080048,
+    "test_precision": 0.44044178364987613,
+    "test_recall": 0.77356780275562,
+    "test_f1": 0.5612996579847409,
+    "test_pr_auc": 0.541538043703362,
+    "classification_report": {
+        "0": {
+            "precision": 0.9828228789900018,
+            "recall": 0.9294920985888014,
+            "f1-score": 0.9554138424310485,
+            "support": 76885.0
+        },
+        "1": {
+            "precision": 0.44044178364987613,
+            "recall": 0.77356780275562,
+            "f1-score": 0.5612996579847409,
+            "support": 5516.0
+        },
+        "accuracy": 0.9190543804080048,
+        "macro avg": {
+            "precision": 0.711632331319939,
+            "recall": 0.8515299506722107,
+            "f1-score": 0.7583567502078947,
+            "support": 82401.0
+        },
+        "weighted avg": {
+            "precision": 0.9465153812424485,
+            "recall": 0.9190543804080048,
+            "f1-score": 0.929031470355396,
+            "support": 82401.0
+        }
+    },
+    "confusion_matrix": [
+        [
+            71464,
+            5421
+        ],
+        [
+            1249,
+            4267
+        ]
+    ],
+    "train_records": 384549,
+    "validation_records": 82401,
+    "test_records": 82401
+}
