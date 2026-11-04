@@ -149,47 +149,37 @@ function App() {
     },
   ].filter((item) => item.value > 0);
 
-  // Drought analytics are derived from the latest district-level SPI/status
-  // values returned by the unified risk API. This is not a historical trend.
-  const droughtChartData = districts
-    .filter((item) => item.drought?.spi_3 != null && Number.isFinite(Number(item.drought.spi_3)))
-    .map((item) => {
-      const spi = Number(item.drought.spi_3);
-      return {
-        district: item.district,
-        spi,
-        severity: Math.abs(spi),
-        status: item.drought?.status || "Insufficient Data",
-      };
-    })
-    .sort((a, b) => b.severity - a.severity)
-    .slice(0, 10);
-
-  const droughtSeverityData = [
-    { name: "Extreme Drought", value: districts.filter((d) => d.drought?.status === "Extreme Drought").length, color: "#991b1b" },
-    { name: "Severe Drought", value: districts.filter((d) => d.drought?.status === "Severe Drought").length, color: "#ef4444" },
-    { name: "Moderate Drought", value: districts.filter((d) => d.drought?.status === "Moderate Drought").length, color: "#f97316" },
-    { name: "Normal", value: districts.filter((d) => d.drought?.status === "Normal").length, color: "#22c55e" },
-    { name: "Insufficient Data", value: districts.filter((d) => !d.drought?.status || d.drought.status === "Insufficient Data").length, color: "#64748b" },
-  ].filter((item) => item.value > 0);
-
-  const droughtSeverityCount = districts.filter((item) =>
-    ["Moderate Drought", "Severe Drought", "Extreme Drought"].includes(item.drought?.status)
-  ).length;
-
-  const getAlertClass = (level) => {
-    const classes = {
-      Critical: "critical",
-      High: "high",
-      Moderate: "moderate",
-      Low: "low",
-      Normal: "normal",
-      "Insufficient Data": "unknown",
-      "Extreme Drought": "extreme-drought",
-      "Severe Drought": "severe-drought",
-      "Moderate Drought": "moderate-drought",
+  // Inline badge colours avoid conflicting or missing CSS class rules.
+  const getStatusStyle = (status) => {
+    const value = String(status || "").trim().toLowerCase();
+    const palette = {
+      "very high": ["#3b1720", "#fca5a5", "#7f1d1d"],
+      "high": ["#3b2416", "#fdba74", "#9a3412"],
+      "moderate": ["#3b3215", "#fde047", "#854d0e"],
+      "low": ["#123448", "#7dd3fc", "#155e75"],
+      "critical": ["#3b1720", "#fca5a5", "#7f1d1d"],
+      "extreme drought": ["#3b1720", "#fca5a5", "#7f1d1d"],
+      "severe drought": ["#3b2416", "#fdba74", "#9a3412"],
+      "moderate drought": ["#3b3215", "#fde047", "#854d0e"],
+      "normal": ["#123322", "#86efac", "#166534"],
+      "insufficient data": ["#273449", "#cbd5e1", "#475569"],
     };
-    return classes[level] || "unknown";
+    const [background, color, borderColor] = palette[value] || palette["insufficient data"];
+    return {
+      backgroundColor: background,
+      color,
+      border: `1px solid ${borderColor}`,
+      display: "inline-flex",
+      alignItems: "center",
+      justifyContent: "center",
+      minWidth: "88px",
+      padding: "5px 10px",
+      borderRadius: "6px",
+      fontWeight: 600,
+      fontSize: "11px",
+      lineHeight: 1.3,
+      whiteSpace: "nowrap",
+    };
   };
 
   return (
@@ -460,107 +450,6 @@ function App() {
               </div>
             </section>
 
-            <section className="dashboard-section" id="drought">
-              <div className="section-heading">
-                <div>
-                  <h2>Drought Analysis</h2>
-                  <p>Latest district-level drought conditions using the Standardized Precipitation Index (SPI-3)</p>
-                </div>
-                <span className="record-count">{droughtSeverityCount} affected districts</span>
-              </div>
-
-              <div className="charts-grid drought-charts-grid">
-                <div className="panel chart-panel">
-                  <div className="panel-heading">
-                    <div>
-                      <h3>Drought Intensity by District</h3>
-                      <p>Higher bars indicate more negative SPI-3 values and greater drought severity</p>
-                    </div>
-                    <span className="panel-icon purple-icon"><Wind size={19} /></span>
-                  </div>
-                  {droughtChartData.length ? (
-                    <ResponsiveContainer width="100%" height={300}>
-                      <BarChart data={droughtChartData} margin={{ top: 12, right: 12, left: 5, bottom: 8 }}>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#293343" />
-                        <XAxis dataKey="district" tick={{ fill: "#94a3b8", fontSize: 10 }} axisLine={false} tickLine={false} interval={0} angle={-25} textAnchor="end" height={65} />
-                        <YAxis
-                          domain={[0, "auto"]}
-                          tick={{ fill: "#94a3b8", fontSize: 11 }}
-                          axisLine={false}
-                          tickLine={false}
-                          tickFormatter={(value) => `-${Number(value).toFixed(1)}`}
-                          label={{ value: "SPI-3", angle: -90, position: "insideLeft", fill: "#94a3b8" }}
-                        />
-                        <Tooltip
-                          cursor={false}
-                          formatter={(value) => [`-${Number(value).toFixed(2)}`, "SPI-3"]}
-                          contentStyle={{ background: "#151e2c", border: "1px solid #334155", borderRadius: 8 }}
-                          labelStyle={{ color: "#fff" }}
-                        />
-                        <Bar dataKey="severity" name="SPI-3 magnitude" fill="#a78bfa" radius={[5, 5, 0, 0]} activeBar={false} />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  ) : <EmptyChart />}
-                </div>
-
-                <div className="panel chart-panel">
-                  <div className="panel-heading">
-                    <div>
-                      <h3>Drought Severity Distribution</h3>
-                      <p>Latest status across monitored districts</p>
-                    </div>
-                    <span className="panel-icon purple-icon"><Gauge size={19} /></span>
-                  </div>
-                  {droughtSeverityData.length ? (
-                    <>
-                      <ResponsiveContainer width="100%" height={220}>
-                        <PieChart>
-                          <Pie data={droughtSeverityData} dataKey="value" nameKey="name" innerRadius={55} outerRadius={82} paddingAngle={3}>
-                            {droughtSeverityData.map((entry) => <Cell key={entry.name} fill={entry.color} />)}
-                          </Pie>
-                          <Tooltip contentStyle={{ background: "#151e2c", border: "1px solid #334155", borderRadius: 8 }} />
-                        </PieChart>
-                      </ResponsiveContainer>
-                      <div className="chart-legend">
-                        {droughtSeverityData.map((item) => (
-                          <span key={item.name}><i style={{ background: item.color }} />{item.name}: {item.value}</span>
-                        ))}
-                      </div>
-                    </>
-                  ) : <EmptyChart />}
-                </div>
-              </div>
-
-              <div className="panel table-panel drought-table-panel">
-                <div className="panel-heading drought-table-heading">
-                  <div>
-                    <h3>District Drought Status</h3>
-                    <p>Latest available SPI-3 reading and drought classification</p>
-                  </div>
-                </div>
-                <div className="table-scroll">
-                  <table>
-                    <thead><tr><th>District</th><th>SPI-3</th><th>Drought Status</th><th>Overall Alert</th></tr></thead>
-                    <tbody>
-                      {[...districts].sort((a, b) => {
-                        const av = a.drought?.spi_3 == null ? Infinity : Number(a.drought.spi_3);
-                        const bv = b.drought?.spi_3 == null ? Infinity : Number(b.drought.spi_3);
-                        return av - bv;
-                      }).map((item) => (
-                        <tr key={`drought-${item.district}`}>
-                          <td className="district-name">{item.district}</td>
-                          <td>{item.drought?.spi_3 != null && Number.isFinite(Number(item.drought.spi_3)) ? Number(item.drought.spi_3).toFixed(2) : "—"}</td>
-                          <td><span className={`status-pill ${getAlertClass(item.drought?.status)}`}>{item.drought?.status || "Insufficient Data"}</span></td>
-                          <td><span className={`status-pill ${getAlertClass(item.overall_alert)}`}>{item.overall_alert || "Insufficient Data"}</span></td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-              <p className="map-method-note">Interpretation: more negative SPI-3 values indicate drier-than-usual conditions. These charts summarize the latest available district observations; they do not show a historical SPI trend.</p>
-            </section>
-
             <section className="section-heading table-title" id="districts">
               <div>
                 <h2>District Risk Monitoring</h2>
@@ -609,18 +498,18 @@ function App() {
                           ? Number(item.drought.spi_3).toFixed(2)
                           : "—"}</td>
                         <td>
-                          <span className={`status-pill ${getAlertClass(item.drought?.status)}`}>
+                          <span className="status-pill" style={getStatusStyle(item.drought?.status)}>
                             {item.drought?.status || "Insufficient Data"}
                           </span>
                         </td>
                         <td>{item.flood?.risk_score ?? "—"}</td>
                         <td>
-                          <span className={`status-pill ${getAlertClass(item.flood?.status)}`}>
+                          <span className="status-pill" style={getStatusStyle(item.flood?.status)}>
                             {item.flood?.status || "Insufficient Data"}
                           </span>
                         </td>
                         <td>
-                          <span className={`status-pill ${getAlertClass(item.overall_alert)}`}>
+                          <span className="status-pill" style={getStatusStyle(item.overall_alert)}>
                             {item.overall_alert || "Insufficient Data"}
                           </span>
                         </td>
@@ -721,7 +610,16 @@ function DistrictMapDetails({ district, floodDistricts }) {
     ["ML warning", warning === true ? "Warning issued" : warning === false ? "No warning" : "Not available"],
     ["Latest flood data", district.flood?.date ?? ml?.date ?? "—"],
   ];
-  return <div className="district-detail-list">{rows.map(([label, value]) => <div className="district-detail-row" key={label}><span>{label}</span><strong>{value}</strong></div>)}</div>;
+  return (
+    <div className="district-detail-list">
+      {rows.map(([label, value]) => (
+        <div className="district-detail-row" key={label}>
+          <span>{label}:</span>
+          <strong>{value}</strong>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 function StatCard({ icon, label, value, detail, color }) {
