@@ -42,30 +42,23 @@ def classify_drought(spi):
 
 # Load SPI dataset
 def get_drought_data():
-
     if not SPI_FILE.exists():
-        raise FileNotFoundError(
-            f"SPI dataset not found: {SPI_FILE}"
+        return pd.DataFrame(
+            columns=["date", "district", "spi_3", "risk_level"]
         )
 
-    df = pd.read_csv(
-        SPI_FILE,
-        parse_dates=["date"]
-    )
+    df = pd.read_csv(SPI_FILE, parse_dates=["date"])
 
     if "spi_3" not in df.columns:
-        raise ValueError(
-            "Required column 'spi_3' not found in SPI dataset"
+        return pd.DataFrame(
+            columns=["date", "district", "spi_3", "risk_level"]
         )
 
     df["spi_3"] = pd.to_numeric(
-        df["spi_3"],
-        errors="coerce"
+        df["spi_3"], errors="coerce"
     )
 
-    df["risk_level"] = df["spi_3"].apply(
-        classify_drought
-    )
+    df["risk_level"] = df["spi_3"].apply(classify_drought)
 
     return df
 
