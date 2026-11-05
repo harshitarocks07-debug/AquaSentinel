@@ -11,7 +11,7 @@ SPI_FILE = (
     BASE_DIR
     / "Data"
     / "Processed"
-    / "gujarat_district_spi.csv"
+    / "gujarat_district_spi_deploy.csv"
 )
 
 SPEI_FILE = (
@@ -59,7 +59,7 @@ def get_drought_data():
     if "spi_3" not in df.columns:
         raise ValueError("SPI dataset is missing the spi_3 column")
 
-    # Explicitly convert dates to datetime
+    # Convert dates to datetime
     df["date"] = pd.to_datetime(
         df["date"],
         errors="coerce",
