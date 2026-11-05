@@ -1,11 +1,12 @@
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from app.routes import drought, flood, unified
 
 
-# Initialize FastAPI
 app = FastAPI(
     title="AquaSentinel API",
     description="AI-Powered Flood and Drought Early Warning System",
@@ -13,7 +14,7 @@ app = FastAPI(
 )
 
 
-# CORS configuration for frontend
+# CORS configuration
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -28,15 +29,6 @@ app.include_router(drought.router)
 app.include_router(flood.router)
 app.include_router(unified.router)
 
-# Root endpoint
-@app.get("/")
-def root():
-    return {
-        "message": "Welcome to AquaSentinel API",
-        "status": "online",
-        "version": "1.0.0"
-    }
-
 
 # Health check
 @app.get("/health")
@@ -44,3 +36,14 @@ def health():
     return {
         "status": "healthy"
     }
+
+
+# Serve React frontend
+REPO_ROOT = Path(__file__).resolve().parents[2]
+FRONTEND_DIST = REPO_ROOT / "frontend" / "dist"
+
+app.mount(
+    "/",
+    StaticFiles(directory=str(FRONTEND_DIST), html=True),
+    name="frontend"
+)

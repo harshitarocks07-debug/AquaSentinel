@@ -33,8 +33,12 @@ import "leaflet/dist/leaflet.css";
 import { GeoJSON, MapContainer, TileLayer } from "react-leaflet";
 import "./App.css";
 
-const API_URL = "http://127.0.0.1:8000/api/risk/latest";
-const FLOOD_API_URL = "http://127.0.0.1:8000/api/flood/latest";
+const API_BASE_URL = import.meta.env.DEV
+  ? "http://127.0.0.1:8000"
+  : "";
+
+const API_URL = `${API_BASE_URL}/api/risk/latest`;
+const FLOOD_API_URL = `${API_BASE_URL}/api/flood/latest`;
 const GEOJSON_URL = "/data/gujarat_districts.geojson";
 
 function App() {
