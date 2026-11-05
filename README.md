@@ -201,6 +201,23 @@ https://aquasentinel-fwbv.onrender.com
 
 The same URL provides access to the frontend dashboard and backend API services.
 
+## Dashboard Screenshots
+
+### 1. AquaSentinel Overview
+![AquaSentinel Overview](Aqua_overview.png)
+
+### 2. Gujarat District Map
+![Gujarat Map](Aqua_gujaratMap.png)
+
+### 3. Risk and Drought Intelligence
+![Risk and Drought Intelligence](Aqua_risk_and_drought_intelligence.png)
+
+### 4. District-Wise Drought Status
+![District Drought Status](district_drought_status.png)
+
+### 5. Risk Monitoring
+![Risk Monitoring](risk_monitoring.png)
+
 ## 12. Project Information
 
 | Category | Details |
