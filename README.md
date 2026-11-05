@@ -1,234 +1,249 @@
 # AquaSentinel
 ### AI-Powered Flood and Drought Early Warning System for Gujarat
 
-[**Live Application**](https://aquasentinel-fwbv.onrender.com)
+**Live Demo:** https://aquasentinel-fwbv.onrender.com
 
----
+## Overview
 
-## 1. Overview
+AquaSentinel is an AI-powered climate-risk monitoring and early warning platform designed to assess flood and drought conditions across Gujarat.
 
-AquaSentinel is an AI-powered environmental risk monitoring platform designed to support flood and drought risk assessment across districts of Gujarat.
+The platform combines machine learning, rainfall analysis, drought indicators, geospatial visualization, and district-level risk assessment to transform environmental data into actionable insights.
 
-The platform combines rainfall-related data, district-level risk analysis, drought indicators, and machine learning-based warnings through an interactive dashboard.
+It provides a centralized dashboard for monitoring flood risk, identifying extreme rainfall conditions, assessing drought severity, and understanding district-wise climate vulnerability.
 
-It provides geographical risk visualization and analytical insights to support environmental monitoring and informed decision-making.
+## Problem Statement
 
-## 2. Problem Statement
+Gujarat experiences recurring climate-related challenges, including extreme rainfall, flooding, and prolonged dry periods.
 
-Floods and droughts are recurring environmental challenges in Gujarat. Monitoring these risks across multiple districts requires access to reliable data and clear analytical insights.
+Traditional monitoring approaches can make it difficult to interpret large volumes of environmental data and communicate district-level risks effectively.
 
-AquaSentinel addresses this challenge by bringing flood risk assessment, drought monitoring, and machine learning-based warnings together in a single platform.
+AquaSentinel addresses this challenge through an integrated platform that combines predictive analytics and drought assessment to support better climate-risk monitoring and early decision-making.
 
-## 3. Features
+## Key Features
 
-- **District-Level Flood Risk Map:** Interactive map displaying flood risk across Gujarat districts.
-- **Flood Risk Analysis:** Visualizes district-level flood risk classifications.
-- **ML-Based Warning System:** Displays machine learning-based extreme rainfall warnings.
-- **Drought Analysis:** Monitors drought conditions using the Standardized Precipitation Index (SPI).
-- **District-Level Drought Assessment:** Provides drought severity information across 33 districts.
-- **Risk Intelligence:** Presents relevant flood and drought risk information through the dashboard.
-- **Data Visualization:** Uses charts, statistics, and geographical visualizations to make risk information easier to interpret.
+### 1. District-Level Flood Risk Monitoring
+- Interactive Gujarat district map.
+- District-wise flood risk visualization.
+- Categorization of flood risk into different severity levels.
+- Geographic representation of potential high-risk areas.
 
-## 4. System Architecture
+### 2. Machine Learning-Based Flood Prediction
+- Uses an XGBoost Classifier for extreme rainfall prediction.
+- Analyzes historical rainfall and engineered flood-related features.
+- Identifies potential extreme rainfall conditions.
+- Generates ML-based warning signals.
 
-AquaSentinel follows a unified frontend-backend architecture.
+### 3. Drought Intelligence
+- Uses the Standardized Precipitation Index (SPI-3).
+- Evaluates rainfall deficits over a three-month period.
+- Classifies drought conditions using SPI thresholds.
+- Provides district-wise drought status.
 
-```text
-                 User
-                   |
-                   v
-          React + Vite Frontend
-                   |
-                   v
-             FastAPI Backend
-                   |
-          +--------+--------+
-          |        |        |
-          v        v        v
-        Flood   Drought   Unified
-        Engine  Engine    Risk Engine
-          |        |        |
-          +--------+--------+
-                   |
-                   v
-             Processed Data
-                   |
-                   v
-          Risk Analysis Results
-                   |
-                   v
-          Interactive Dashboard
-```
+**Drought classification thresholds:**
 
-**Deployment Architecture:**
-
-The application is deployed as a single Render Web Service. FastAPI handles API requests and serves the production-built React frontend. Both are accessible through the same application URL.
-
-## 5. Technology Stack
-
-| Component | Technology |
-|---|---|
-| Frontend | React.js |
-| Frontend Build Tool | Vite |
-| Backend | Python, FastAPI |
-| API Communication | REST API |
-| Machine Learning | Python-based ML models |
-| Data Processing | Pandas, NumPy |
-| Data Visualization | Interactive maps and dashboard charts |
-| Deployment | Render |
-| Version Control | Git and GitHub |
-
-## 6. Machine Learning and Risk Analysis
-
-AquaSentinel combines different approaches for environmental risk monitoring.
-
-### Flood Risk Assessment
-
-Uses district-level information to classify flood risk into categories and visualize the results on the Gujarat map.
-
-### ML-Based Extreme Rainfall Warning
-
-Uses a machine learning-based warning mechanism to identify potential extreme rainfall conditions.
-
-### Drought Assessment
-
-Uses the Standardized Precipitation Index (SPI) to assess drought severity.
-
-The current drought classification thresholds are:
-
-| SPI Value | Classification |
+| SPI-3 Value | Classification |
 |---|---|
 | SPI ≤ -2.0 | Extreme Drought |
 | -2.0 < SPI ≤ -1.5 | Severe Drought |
 | -1.5 < SPI ≤ -1.0 | Moderate Drought |
 | SPI > -1.0 | Normal |
 
-## 7. API Endpoints
+### 4. Unified Risk Intelligence
+- Combines flood and drought assessment outputs.
+- Provides a consolidated view of climate-related risks.
+- Supports district-level risk monitoring.
 
-The backend exposes the following REST API endpoints:
+### 5. Interactive Dashboard
+- Gujarat district-level map visualization.
+- Flood Risk and ML Warning map modes.
+- Risk monitoring charts and visualizations.
+- District-wise drought status.
+- Latest available risk information.
+
+## Machine Learning Model
+
+### XGBoost Classifier
+
+AquaSentinel's flood prediction component uses an **XGBoost Classifier** to identify potential extreme rainfall events.
+
+The prediction target is whether next-day rainfall exceeds the district-specific 95th percentile threshold calculated from the training period.
+
+**Model configuration and evaluation:**
+
+| Parameter | Value |
+|---|---|
+| Algorithm | XGBoost Classifier |
+| Model Artifact | `flood_xgb_model.joblib` |
+| Test Records | 82,401 |
+| Classification Threshold | 0.80 |
+
+### Model Performance
+
+| Evaluation Metric | Score |
+|---|---:|
+| Accuracy | 92% |
+| Macro Precision | 0.71 |
+| Macro Recall | 0.85 |
+| Macro F1-Score | 0.76 |
+| PR-AUC | 0.5415 |
+
+Accuracy represents overall classification correctness. Precision, recall, F1-score, and PR-AUC provide additional insight into performance, particularly for identifying extreme rainfall events.
+
+*Note: These are the previously reported model evaluation results. They should not be interpreted as a guarantee of real-world flood prediction accuracy.*
+
+## Drought Assessment Methodology
+
+AquaSentinel uses SPI-3 to assess meteorological drought conditions.
+
+The SPI approach measures precipitation anomalies over a three-month accumulation period and helps identify rainfall deficits.
+
+The drought engine processes district-level SPI data and classifies conditions using predefined severity thresholds.
+
+Unlike the flood prediction component, this is an indicator-based drought assessment rather than an XGBoost prediction model.
+
+## System Architecture
+
+```text
+              React + Vite Frontend
+                       |
+                       v
+                FastAPI Backend
+                       |
+          +------------+------------+
+          |            |            |
+          v            v            v
+      Flood Engine  Drought Engine  Unified Risk
+          |            |            |
+          v            v            v
+      XGBoost       SPI-3 Data    Risk Assessment
+      Classifier    Processing
+          |            |            |
+          +------------+------------+
+                       |
+                       v
+             Processed Risk Outputs
+                       |
+                       v
+              Interactive Dashboard
+```
+
+## Technology Stack
+
+| Category | Technologies |
+|---|---|
+| Frontend | React.js, Vite, JavaScript |
+| Backend | Python, FastAPI |
+| Machine Learning | XGBoost |
+| Data Processing | Pandas, NumPy |
+| Model Serialization | Joblib |
+| Drought Assessment | Standardized Precipitation Index (SPI-3) |
+| Visualization | Interactive maps, charts |
+| API Communication | REST APIs |
+| Deployment | Render |
+| Version Control | Git, GitHub |
+
+## API Endpoints
 
 | Endpoint | Description |
 |---|---|
-| `/health` | Backend health check |
-| `/api/risk/latest` | Latest unified risk information |
-| `/api/flood/latest` | Latest flood risk information |
-| `/api/drought/latest` | Latest drought assessment |
+| `/health` | Checks backend health |
+| `/api/risk/latest` | Retrieves latest unified risk information |
+| `/api/flood/latest` | Retrieves latest flood assessment |
+| `/api/drought/latest` | Retrieves latest drought assessment |
 
-These endpoints are accessible through the deployed application domain.
+## Dashboard Screenshots
 
-## 8. Installation and Local Setup
+### 1. AquaSentinel Overview
+![AquaSentinel Overview](./Aqua_overview.png)
+
+### 2. Gujarat District Map
+![Gujarat Map](./Aqua_gujaratMap.png)
+
+### 3. Risk and Drought Intelligence
+![Risk and Drought Intelligence](./Aqua_risk_and_drought_intelligence.png)
+
+### 4. District-Wise Drought Status
+![District Drought Status](./district_drought_status.png)
+
+### 5. Risk Monitoring
+![Risk Monitoring](./risk_monitoring.png)
+
+## Local Installation and Setup
 
 ### Prerequisites
-
 - Python 3.10+
 - Node.js and npm
 - Git
 
-### Step 1: Clone the Repository
+### 1. Clone the Repository
 
 ```bash
 git clone https://github.com/harshitarocks07-debug/AquaSentinel.git
 cd AquaSentinel
 ```
 
-### Step 2: Install Backend Dependencies
+### 2. Set Up the Backend
 
 ```bash
 cd backend
-python -m venv venv
-```
-
-Activate the virtual environment on Windows:
-
-```powershell
-venv\Scripts\activate
-```
-
-Install dependencies:
-
-```bash
 pip install -r requirements.txt
+uvicorn app.main:app --reload --port 8000
 ```
 
-### Step 3: Install and Build the Frontend
+Backend API:
+
+`http://127.0.0.1:8000`
+
+API Documentation:
+
+`http://127.0.0.1:8000/docs`
+
+### 3. Set Up the Frontend
 
 Open another terminal:
 
 ```bash
 cd frontend
 npm install
-npm run build
+npm run dev
 ```
 
-### Step 4: Run the Application
+The frontend development server will be available at the URL displayed in the terminal.
 
-From the backend directory, start FastAPI:
+## Deployment
 
-```bash
-uvicorn app.main:app --reload --port 8000
-```
+AquaSentinel is deployed on Render as a web service.
 
-Open the application at:
+**Live Application:** https://aquasentinel-fwbv.onrender.com
 
-```text
-http://localhost:8000
-```
+The deployment serves the React frontend and FastAPI backend through a single application URL.
 
-FastAPI serves the built React frontend and handles backend API requests. Therefore, the complete application is accessible through a single local URL.
+## Limitations
 
-## 9. Limitations
+- Predictions depend on the quality and availability of historical rainfall data.
+- Model performance on test data does not guarantee real-world forecasting accuracy.
+- SPI-based drought assessment is dependent on precipitation data and does not independently measure soil moisture or groundwater availability.
+- The platform currently focuses on Gujarat rather than nationwide coverage.
+- Early warnings should be interpreted as decision-support information, not official disaster alerts.
+- Live performance may be affected by free-tier hosting limitations.
 
-- Risk assessments depend on the availability and quality of input datasets.
-- Machine learning warnings indicate potential conditions and should not be interpreted as confirmed disasters.
-- District-level predictions may not capture highly localized weather events.
-- The platform is intended for monitoring and decision support, not as a replacement for official disaster management alerts.
+## Future Roadmap
 
-## 10. Future Roadmap
+- Integrate real-time meteorological data sources.
+- Improve flood forecasting with additional environmental variables.
+- Add district-level drought trend analysis.
+- Introduce automated alerts and notifications.
+- Incorporate satellite imagery and remote-sensing data.
+- Expand coverage to additional Indian states.
+- Improve model evaluation using additional validation datasets.
+- Develop a mobile-friendly monitoring experience.
 
-- Integrate real-time weather data sources.
-- Improve model performance through additional historical datasets.
-- Introduce more granular geographical risk assessment.
-- Add historical risk trend analysis.
-- Improve warning mechanisms and notification capabilities.
-- Expand monitoring and analytical capabilities to additional regions.
+## Project Significance
 
-## 11. Deployment
+AquaSentinel aims to make climate-risk information more accessible and interpretable through machine learning, geospatial analysis, and environmental indicators.
 
-AquaSentinel is deployed on Render as a single web service.
-
-**Live Application:**  
-https://aquasentinel-fwbv.onrender.com
-
-The same URL provides access to the frontend dashboard and backend API services.
-
-## Dashboard Screenshots
-
-### 1. AquaSentinel Overview
-![AquaSentinel Overview](Aqua_overview.png)
-
-### 2. Gujarat District Map
-![Gujarat Map](Aqua_gujaratMap.png)
-
-### 3. Risk and Drought Intelligence
-![Risk and Drought Intelligence](Aqua_risk_and_drought_intelligence.png)
-
-### 4. District-Wise Drought Status
-![District Drought Status](district_drought_status.png)
-
-### 5. Risk Monitoring
-![Risk Monitoring](risk_monitoring.png)
-
-## 12. Project Information
-
-| Category | Details |
-|---|---|
-| Project | AquaSentinel |
-| Domain | Artificial Intelligence and Machine Learning |
-| Application Area | Environmental Monitoring |
-| Focus | Flood and Drought Risk Assessment |
-| Geographical Scope | Gujarat, India |
-| Deployment Platform | Render |
+By bringing flood prediction and drought assessment together, the platform can support researchers, administrators, and communities in understanding regional climate risks and making more informed decisions.
 
 ---
 
-**AquaSentinel — Enabling data-driven environmental risk monitoring for Gujarat.**
+**AquaSentinel — Turning Environmental Data into Climate-Risk Intelligence.**
