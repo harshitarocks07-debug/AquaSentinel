@@ -244,6 +244,13 @@ AquaSentinel aims to make climate-risk information more accessible and interpret
 
 By bringing flood prediction and drought assessment together, the platform can support researchers, administrators, and communities in understanding regional climate risks and making more informed decisions.
 
+## Project Achievement
+
+- **Competition Ranking:** 58th place
+- **Total Participating Teams:** 329
+- **Project:** AquaSentinel
+
+AquaSentinel secured **58th rank among 329 participating teams**, recognizing the project's approach to AI-powered flood prediction, drought assessment, and climate-risk monitoring.
 ---
 
 **AquaSentinel — Turning Environmental Data into Climate-Risk Intelligence.**
